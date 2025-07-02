@@ -50,6 +50,14 @@ stages:
         Contents: '**\*'
         TargetFolder: '$(copyToPath)'
 
+    - task: CopyFiles@2
+      displayName: 'Copy to IIS Web Server'
+      inputs:
+        SourceFolder: '$(outputPath)'
+        Contents: '**\*'
+        TargetFolder: 'C:\inetpub\wwwroot\MyDesktopApp'
+
+
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifacts'
       inputs:
