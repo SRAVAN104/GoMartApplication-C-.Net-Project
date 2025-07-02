@@ -50,12 +50,12 @@ stages:
         Contents: '**\*'
         TargetFolder: '$(copyToPath)'
 
-    - task: CopyFiles@2
-      displayName: 'Copy to IIS Web Server'
-      inputs:
-        SourceFolder: '$(outputPath)'
-        Contents: '**\*'
-        TargetFolder: 'C:\inetpub\wwwroot\GoMartDesktopApp'
+    # - task: CopyFiles@2
+    #   displayName: 'Copy to IIS Web Server'
+    #   inputs:
+    #     SourceFolder: '$(outputPath)'
+    #     Contents: '**\*'
+    #     TargetFolder: 'C:\inetpub\wwwroot\GoMartDesktopApp'
 
 
     - task: PublishBuildArtifacts@1
@@ -63,3 +63,69 @@ stages:
       inputs:
         PathtoPublish: '$(outputPath)'
         ArtifactName: 'drop'
+
+- stage: Deploy
+  displayName: 'Deploy to IIS for Download'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: DeployToIIS
+    displayName: 'Copy EXE to IIS Web Directory'
+    pool:
+      name: 'Default'
+    steps:
+
+    - task: DownloadBuildArtifacts@0
+      displayName: 'Download Build Artifacts'
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        downloadPath: '$(Pipeline.Workspace)'
+
+    - task: PowerShell@2
+      displayName: 'Create IIS Web Folder if Not Exists'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $iisFolderPath = 'C:\inetpub\wwwroot\GoMartDesktopApp'
+          if (!(Test-Path $iisFolderPath)) {
+              New-Item -Path $iisFolderPath -ItemType Directory | Out-Null
+              Write-Host "Created IIS folder: $iisFolderPath"
+          } else {
+              Write-Host "IIS folder already exists."
+          }
+
+    - task: CopyFiles@2
+      displayName: 'Copy Files to IIS Directory'
+      inputs:
+        SourceFolder: '$(Pipeline.Workspace)\drop'
+        Contents: '**\*'
+        TargetFolder: 'C:\inetpub\wwwroot\GoMartDesktopApp'
+
+    - task: PowerShell@2
+      displayName: 'Ensure .exe MIME Type in IIS'
+      inputs:
+        targetType: 'inline'
+        script: |
+          Import-Module WebAdministration
+          $mimeExists = Get-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' `
+            -filter "system.webServer/staticContent/mimeMap[@fileExtension='.exe']" `
+            -name "fileExtension" -ErrorAction SilentlyContinue
+          if (-not $mimeExists) {
+            Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' `
+              -filter "system.webServer/staticContent" `
+              -name "." `
+              -value @{fileExtension='.exe'; mimeType='application/octet-stream'}
+            Write-Host "Added .exe MIME type."
+          } else {
+            Write-Host ".exe MIME type already exists."
+          }
+
+    - task: PowerShell@2
+      displayName: 'Restart IIS to Apply Changes'
+      inputs:
+        targetType: 'inline'
+        script: |
+          iisreset
+
