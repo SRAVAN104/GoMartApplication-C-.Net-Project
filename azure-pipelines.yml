@@ -3,6 +3,9 @@ trigger:
 
 pool:
   name: 'Default'
+  demands:
+    - agent.name -equals WindowsServer
+
 
 variables:
   buildConfiguration: 'Release'
