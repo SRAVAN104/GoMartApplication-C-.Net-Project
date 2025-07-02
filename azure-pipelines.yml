@@ -1,33 +1,56 @@
-# .NET Desktop
-# Build and run tests for .NET Desktop or Windows classic desktop solutions.
-# Add steps that publish symbols, save build artifacts, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/windows/dot-net
-
 trigger:
-- master
+- main
 
 pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
+  # solution: '**/*.sln'
+  solution: 'GoMartApplication.sln'
+  projectPath: 'GoMartApplication\GoMartApplication.csproj'
+  outputPath: '$(Build.ArtifactStagingDirectory)\AppOutput'
+  copyToPath: 'C:\agent\MyApp'
 
-steps:
-- task: NuGetToolInstaller@1
+stages:
+- stage: Build
+  jobs:
+  - job: BuildDesktopApp
+    displayName: 'Build .NET Desktop App'
+    steps:
 
-- task: NuGetCommand@2
-  inputs:
-    restoreSolution: '$(solution)'
+    - task: NuGetToolInstaller@1
+      displayName: 'Install NuGet'
 
-- task: VSBuild@1
-  inputs:
-    solution: '$(solution)'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    - task: NuGetCommand@2
+      displayName: 'Restore NuGet Packages'
+      inputs:
+        restoreSolution: '$(solution)'
 
-- task: VSTest@2
-  inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    - task: VSBuild@1
+      displayName: 'Build Solution'
+      inputs:
+        solution: '$(solution)'
+        msbuildArgs: '/p:Configuration=$(buildConfiguration)'
+        platform: 'Any CPU'
+        configuration: '$(buildConfiguration)'
+
+    - task: CopyFiles@2
+      displayName: 'Copy Build Output to Staging Directory'
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)\MyApp\bin\$(buildConfiguration)'
+        Contents: '**\*'
+        TargetFolder: '$(outputPath)'
+
+    - task: CopyFiles@2
+      displayName: 'Copy to Final Target Directory'
+      inputs:
+        SourceFolder: '$(outputPath)'
+        Contents: '**\*'
+        TargetFolder: '$(copyToPath)'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Build Artifacts'
+      inputs:
+        PathtoPublish: '$(outputPath)'
+        ArtifactName: 'drop'
