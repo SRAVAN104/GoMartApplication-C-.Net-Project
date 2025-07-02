@@ -55,7 +55,7 @@ stages:
       inputs:
         SourceFolder: '$(outputPath)'
         Contents: '**\*'
-        TargetFolder: 'C:\inetpub\wwwroot\MyDesktopApp'
+        TargetFolder: 'C:\inetpub\wwwroot\GoMartDesktopApp'
 
 
     - task: PublishBuildArtifacts@1
